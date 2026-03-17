@@ -12,12 +12,34 @@ import os
 # Project root (parent of api/). Load .env from project root.
 _BASE = Path(__file__).resolve().parent.parent
 _env_path = _BASE / ".env"
+
+def _load_env_fallback():
+    """If .env exists but key vars are missing (e.g. BOM), parse .env and set os.environ."""
+    if not _env_path.exists():
+        return
+    want = {"SUPABASE_URL", "SUPABASE_KEY", "SUPABASE_ANON_KEY"}
+    try:
+        raw = _env_path.read_bytes().decode("utf-8-sig")  # strip BOM
+        for line in raw.splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" not in line:
+                continue
+            key, _, value = line.partition("=")
+            key = key.strip()
+            if key in want and value:
+                os.environ[key] = value.strip()
+    except Exception:
+        pass
+
 if _env_path.exists():
     try:
         from dotenv import load_dotenv
-        load_dotenv(_env_path)
+        load_dotenv(_env_path, override=True)
     except ImportError:
         pass
+_load_env_fallback()
 
 import json
 import time
@@ -40,20 +62,23 @@ ALLOWED_EXT = {".jpg", ".jpeg", ".png", ".pdf"}
 PORT        = int(os.environ.get("PORT", "5050"))
 
 # Supabase — from .env (SERVICE_* from DevOps / Kong gateway)
-SUPABASE_URL = (
-    os.environ.get("SERVICE_URL_SUPABASEKONG")
-    or os.environ.get("SERVICE_URL_SUPABASEKONG_8000")
-    or os.environ.get("SUPABASE_URL")
-    or os.environ.get("NEXT_PUBLIC_SUPABASE_URL")
-    or os.environ.get("EXPO_PUBLIC_SUPABASE_URL")
+def _getenv(*keys, default=""):
+    for k in keys:
+        v = os.environ.get(k)
+        if v and str(v).strip():
+            return str(v).strip()
+    return default
+
+SUPABASE_URL = _getenv(
+    "SERVICE_URL_SUPABASEKONG", "SERVICE_URL_SUPABASEKONG_8000",
+    "SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL", "EXPO_PUBLIC_SUPABASE_URL"
 )
-SUPABASE_ANON_KEY = (
-    os.environ.get("SERVICE_SUPABASEANON_KEY")
-    or os.environ.get("SUPABASE_ANON_KEY")
-    or os.environ.get("SUPABASE_KEY")
-    or os.environ.get("NEXT_PUBLIC_SUPABASE_ANON_KEY")
-    or os.environ.get("EXPO_PUBLIC_SUPABASE_KEY")
+SUPABASE_ANON_KEY = _getenv(
+    "SERVICE_SUPABASEANON_KEY", "SUPABASE_ANON_KEY", "SUPABASE_KEY",
+    "NEXT_PUBLIC_SUPABASE_ANON_KEY", "EXPO_PUBLIC_SUPABASE_KEY"
 )
+print(f"[ENV] SUPABASE_URL={'SET' if SUPABASE_URL else 'MISSING'}, SUPABASE_ANON_KEY={'SET' if SUPABASE_ANON_KEY else 'MISSING'}")
+print(f"[ENV] .env path = {_env_path}, exists = {_env_path.exists()}")
 # Service role key (optional; for admin operations if needed)
 SUPABASE_SERVICE_KEY = os.environ.get("SERVICE_SUPABASESERVICE_KEY") or os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
 # PostgreSQL connection (optional; for registrations, admin list, stats)

@@ -12,7 +12,7 @@ _env = _root / ".env"
 if _env.exists():
     try:
         from dotenv import load_dotenv
-        load_dotenv(_env)
+        load_dotenv(_env, override=True)
     except ImportError:
         pass
 
