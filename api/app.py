@@ -709,7 +709,7 @@ def register():
         if not _storage_ok:
             return jsonify({
                 "success": False,
-                "message": "File storage is not configured. Set SUPABASE_URL and SUPABASE_KEY in .env and ensure the storage bucket exists."
+                "message": "File storage is not configured. Set SUPABASE_URL and SUPABASE_ANON_KEY (or SUPABASE_KEY) in .env and ensure the storage bucket exists."
             }), 500
         idcard_path = save_file(idcard_file, subfolder, ref_folder=ref)
         if is_bike:
